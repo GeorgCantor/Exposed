@@ -74,9 +74,4 @@ open class BatchUpsertStatement(
 
         return super.prepared(transaction, sql)
     }
-
-    override fun isColumnValuePreferredFromResultSet(column: Column<*>, value: Any?): Boolean {
-        return isEntityIdClientSideGeneratedUUID(column) ||
-            super.isColumnValuePreferredFromResultSet(column, value)
-    }
 }

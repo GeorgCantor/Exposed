@@ -289,6 +289,10 @@ class UpsertTests : DatabaseTestsBase() {
                 it[item] = "Item B"
                 it[gains] = 200
                 it[losses] = 0
+                // Column `amount` has default value 25,
+                // but since that default value is not included into SQL statement,
+                // the statement fails because it can not access `NEW.amount` inside update clause
+                it[amount] = 25
             }
 
             val insertResult = tester.selectAll().where { tester.item neq itemA }.single()
@@ -759,5 +763,46 @@ class UpsertTests : DatabaseTestsBase() {
     private object Words : Table("words") {
         val word = varchar("name", 64).uniqueIndex()
         val count = integer("count").default(1)
+    }
+
+    @Test
+    fun testDefaultValuesAndNullableColumnsNotInArguments() {
+        val tester = object : UUIDTable("test_batch_insert_defaults") {
+            val number = integer("number")
+            val default = varchar("default", 128).default("default")
+            val defaultExpression = varchar("defaultExpression", 128).defaultExpression(stringLiteral("defaultExpression"))
+            val nullable = varchar("nullable", 128).nullable()
+            val nullableDefaultNull = varchar("nullableDefaultNull", 128).nullable().default(null)
+            val nullableDefaultNotNull = varchar("nullableDefaultNotNull", 128).nullable().default("nullableDefaultNotNull")
+            val databaseGenerated = integer("databaseGenerated").withDefinition("DEFAULT 1").databaseGenerated()
+        }
+
+        val testerWithFakeDefaults = object : UUIDTable("test_batch_insert_defaults") {
+            val number = integer("number")
+            val default = varchar("default", 128).default("default-fake")
+            val defaultExpression = varchar("defaultExpression", 128).defaultExpression(stringLiteral("defaultExpression-fake"))
+            val nullable = varchar("nullable", 128).nullable().default("null-fake")
+            val nullableDefaultNull = varchar("nullableDefaultNull", 128).nullable().default("null-fake")
+            val nullableDefaultNotNull = varchar("nullableDefaultNotNull", 128).nullable().default("nullableDefaultNotNull-fake")
+            val databaseGenerated = integer("databaseGenerated").default(-1)
+        }
+
+        withTables(excludeSettings = listOf(TestDB.H2_V1), tester) {
+            val statement = testerWithFakeDefaults.batchUpsert(listOf(1, 2, 3)) {
+                this[testerWithFakeDefaults.number] = 10
+            }
+            statement.forEach {
+                println("id: ${it[testerWithFakeDefaults.id]}")
+            }
+
+            testerWithFakeDefaults.selectAll().forEach {
+                assertEquals("default", it[testerWithFakeDefaults.default])
+                assertEquals("defaultExpression", it[testerWithFakeDefaults.defaultExpression])
+                assertEquals(null, it[testerWithFakeDefaults.nullable])
+                assertEquals(null, it[testerWithFakeDefaults.nullableDefaultNull])
+                assertEquals("nullableDefaultNotNull", it[testerWithFakeDefaults.nullableDefaultNotNull])
+                assertEquals(1, it[testerWithFakeDefaults.databaseGenerated])
+            }
+        }
     }
 }
