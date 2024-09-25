@@ -1,5 +1,12 @@
 # Breaking Changes
 
+## 0.56.0
+
+* `ArrayColumnType` supports multidimensional arrays now and has one more generic parameter.
+  If the was used directly for one dimensional arrays with parameter `T` like `ArrayColumnType<T>`, now it should 
+  be defined as `ArrayColumnType<T, List<T>>`, for example `ArrayColumnType<Int>` -> `ArrayColumnType<Int, List<Int>>`
+  
+
 ## 0.55.0
 * The `DeleteStatement` property `table` is now deprecated in favor of `targetsSet`, which holds a `ColumnSet` that may be a `Table` or `Join`.
   This enables the use of the new `Join.delete()` function, which performs a delete operation on a specific table from the join relation.
